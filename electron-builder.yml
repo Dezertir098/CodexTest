@@ -1,0 +1,25 @@
+appId: io.github.dezertir098.putkege
+productName: Путь к ЕГЭ
+executableName: Put-k-EGE
+asar: true
+directories:
+  output: release
+files:
+  - dist/**/*
+  - desktop/main.cjs
+  - desktop/security.cjs
+  - desktop/icon.png
+  - package.json
+# React and its dependencies are already inside the Vite bundle.
+npmRebuild: false
+win:
+  target:
+    - target: portable
+      arch:
+        - x64
+  # Keep cross-platform building possible without Wine. This edition is unsigned.
+  signAndEditExecutable: false
+  icon: desktop/icon.ico
+portable:
+  artifactName: Put-k-EGE-${version}-${arch}-portable.${ext}
+  requestExecutionLevel: user

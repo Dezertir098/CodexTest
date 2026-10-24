@@ -1,0 +1,55 @@
+name: Windows desktop EXE
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Test learning engine
+        run: npm test
+      - name: Test desktop resource boundaries
+        run: npm run desktop:test
+      - name: Build Windows portable EXE
+        run: npm run desktop:pack:win
+      - name: Test the packaged Windows application
+        run: npm run desktop:smoke -- --packaged
+      - name: Generate SHA256 checksums
+        shell: pwsh
+        run: |
+          $lines = Get-ChildItem release/*-portable.exe | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+            "$hash  $($_.Name)"
+          }
+          $lines | Set-Content release/SHA256SUMS.txt -Encoding utf8
+      - name: Save downloadable build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Put-k-EGE-Windows-x64
+          path: |
+            release/*-portable.exe
+            release/SHA256SUMS.txt
+          if-no-files-found: error
+      - name: Publish tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $files = @(Get-ChildItem release/*-portable.exe | ForEach-Object { $_.FullName })
+          $files += (Resolve-Path release/SHA256SUMS.txt).Path
+          gh release create "$env:GITHUB_REF_NAME" @files --repo "$env:GITHUB_REPOSITORY" --target "$env:GITHUB_SHA" --title "Путь к ЕГЭ $env:GITHUB_REF_NAME — Windows" --notes-file docs/windows-release.md --verify-tag
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
